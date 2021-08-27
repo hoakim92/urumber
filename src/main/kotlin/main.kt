@@ -1,23 +1,31 @@
+import com.github.mustachejava.DefaultMustacheFactory
+import com.github.mustachejava.DefaultMustacheVisitor
 import com.sun.jdi.InvocationException
 import common.RESULT
 import common.StepResult
 import common.Urumber
 import io.ktor.application.*
+import io.ktor.http.*
 import io.ktor.request.*
 import io.ktor.response.*
 import io.ktor.routing.*
 import io.ktor.server.engine.*
 import io.ktor.server.netty.*
 import turtle.Steps
+import java.io.StringWriter
 import java.lang.UnsupportedOperationException
 import java.lang.reflect.InvocationTargetException
 import java.lang.reflect.Method
 
 fun main(args: Array<String>) {
+    val mf = DefaultMustacheFactory()
     embeddedServer(Netty, 8080) {
         routing {
             get("/turtle") {
-                call.respondText("Hello, world!")
+                val m = mf.compile(mf.getReader("templates/hello.html"), "hello")
+                val w = StringWriter()
+                m.execute(w, "null").flush()
+                call.respondText(w.buffer.toString(), ContentType.Text.Html)
             }
             get("/turtle/methods") {
                 call.respondText(getMethods(Steps::class.java).map { it.first }.joinToString(", ", "{", "}"))
