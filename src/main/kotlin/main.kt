@@ -1,9 +1,8 @@
 import com.github.mustachejava.DefaultMustacheFactory
-import com.github.mustachejava.DefaultMustacheVisitor
-import com.sun.jdi.InvocationException
 import common.RESULT
 import common.StepResult
 import common.Urumber
+import common.UrumberDescription
 import io.ktor.application.*
 import io.ktor.http.*
 import io.ktor.request.*
@@ -19,39 +18,60 @@ import java.lang.reflect.Method
 
 fun main(args: Array<String>) {
     val mf = DefaultMustacheFactory()
+    val methods = getRegExpsAndDescription(Steps::class.java).map { MethodView(it.first, it.second) }
     embeddedServer(Netty, 8080) {
         routing {
             get("/turtle") {
-                val m = mf.compile(mf.getReader("templates/hello.html"), "hello")
+                val m = mf.compile(mf.getReader("templates/turtle.html"), "turtle")
                 val w = StringWriter()
-                m.execute(w, "null").flush()
+                m.execute(w, Page(methods)).flush()
                 call.respondText(w.buffer.toString(), ContentType.Text.Html)
             }
-            get("/turtle/methods") {
-                call.respondText(getMethods(Steps::class.java).map { it.first }.joinToString(", ", "{", "}"))
-            }
-            post("/turtle/runTest") {
-                call.respondText(
-                    runTest(
-                        call.receiveText(),
-                        turtle.Steps() as Any
-                    )
-                )
+            post("/turtle") {
+                val m = mf.compile(mf.getReader("templates/turtle.html"), "turtle")
+                val w = StringWriter()
+                val fscript = call.receiveParameters()["fscript"]
+                if (fscript != null) {
+                    m.execute(
+                        w, Page(
+                            methods,
+                            fscript,
+                            runTest(
+                                fscript!!,
+                                turtle.Steps() as Any
+                            )
+                        )
+                    ).flush()
+                } else {
+                    m.execute(w, Page(methods)).flush()
+                }
+                call.respondText(w.buffer.toString(), ContentType.Text.Html)
             }
         }
     }.start(wait = true)
 }
 
+data class Page(
+    val methods: List<MethodView>,
+    val fscript: String =
+        """GIVEN Set horizontal 5
+GIVEN Set vertical 5
+THEN Validate turtle color BLACK""".trimIndent(),
+    val testResults: List<StepResult> = emptyList()
+)
+
+data class MethodView(val regexp: String, val description: String)
+
 fun splitSteps(text: String) = text.split(Regex("(GIVEN|THEN|WHEN)")).filter { it.isNotEmpty() }.map { it.trim() }
 
-fun runTest(steps: String, obj: Any): String {
-    return runSteps(splitSteps(steps), getMethods(obj.javaClass), obj)
+fun runTest(steps: String, obj: Any): List<StepResult> {
+    return runSteps(splitSteps(steps), getMethodsByRegExp(obj.javaClass), obj)
 }
 
 fun runSteps(steps: List<String>, methods: List<Pair<String, Method>>, obj: Any) =
     steps.map {
         runStep(it, methods, obj)
-    }.joinToString(",", "[", "]")
+    }
 
 
 fun runStep(step: String, methods: List<Pair<String, Method>>, obj: Any): StepResult {
@@ -85,5 +105,8 @@ fun runMethod(method: Method, arguments: List<String>, obj: Any) {
 
 fun getArgsFromCommand(step: String, regExp: String) = Regex(regExp).matchEntire(step)!!.groupValues
 
-fun getMethods(clazz: Class<*>) = clazz.methods.filter { it.isAnnotationPresent(Urumber::class.java) }
+fun getMethodsByRegExp(clazz: Class<*>) = clazz.methods.filter { it.isAnnotationPresent(Urumber::class.java) }
     .map { it.getAnnotation(Urumber::class.java).regExp to it }
+
+fun getRegExpsAndDescription(clazz: Class<*>) = clazz.methods.filter { it.isAnnotationPresent(Urumber::class.java) }
+    .map { it.getAnnotation(Urumber::class.java).regExp to it.getAnnotation(UrumberDescription::class.java).description}

@@ -1,0 +1,83 @@
+<html>
+<head>
+    <style>
+        #parent {
+            overflow: hidden;
+            margin-left: 10%;
+            margin-right: 10%;
+            margin-top: 3%;
+        }
+        .right {
+            float: right;
+        }
+        .left {
+            float: left;
+        }
+    </style>
+</head>
+<body>
+<H1 align="center">TURTLE</H1>
+<p align="center">Turtle has two coordinates horizontal(x) and vertical(y)&#13;&#10;</p>
+<p align="center">Turtle has color which calculated from coordinates by rule:&#13;&#10;</p>
+<p align="center">if (x+y) mod 2 == 0 then WHITE</p>
+<p align="center">if (x+y) mod 2 != 0 then BLACK</p>
+<div id="parent">
+
+    <div class="right">
+        <form action="/turtle" method="post">
+            <table>
+                <tbody>
+                <tr>
+                    <td>
+                        <textarea name="fscript" cols=60 rows=8>{{fscript}}</textarea>
+                    </td>
+                </tr>
+                <tr>
+                    <td>
+                        <input type="submit" value="SEND">
+                    </td>
+                </tr>
+                </tbody>
+            </table>
+        </form>
+
+        <table>
+            <thead>
+            <tr>
+                <td>STEP</td>
+                <td>RESULT</td>
+                <td>EXCEPTION</td>
+            </tr>
+            </thead>
+            <tbody>
+            {{#testResults}}
+            <tr>
+                <td>{{step}}</td>
+                <td>{{result}}</td>
+                <td>{{exception}}</td>
+            </tr>
+            {{/testResults}}
+            </tbody>
+        </table>
+    </div>
+    <div class="left">
+        <table>
+            <thead>
+            <tr>
+                <td>STEP DESCRIPTION</td>
+                <td>STEP SYNTAX</td>
+            </tr>
+            </thead>
+            <tbody>
+            {{#methods}}
+            <tr>
+                <td>{{description}}</td>
+                <td>{{regexp}}</td>
+            </tr>
+            {{/methods}}
+            </tbody>
+        </table>
+    </div>
+</div>
+</body>
+</html>
