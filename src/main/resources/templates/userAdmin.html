@@ -3,11 +3,17 @@
     <link rel="stylesheet" type="text/css" href="../static/styles.css">
     <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.7.1/jquery.min.js" type="text/javascript"></script>
     <script src="../static/script.js"></script>
+    <style>
+           textarea
+            {
+              min-width: 360px;
+            }
+    </style>
 </head>
 <body>
-<H1 align="center">TURTLE</H1>
+<H1 align="center">USER ADMIN</H1>
 {{#appDescriptions}}
-    <p align="center">{{description}}&#13;&#10;</p>
+<p align="center">{{description}}&#13;&#10;</p>
 {{/appDescriptions}}
 <div id="wrapper">
     <div>
@@ -29,7 +35,7 @@
         </table>
     </div>
     <div>
-        <form action="/apps/turtle" method="post">
+        <form action="/apps/userAdmin" method="post">
             <table id="stepsTable">
                 <thead>
                 <tr>
@@ -51,7 +57,6 @@
             </table>
             <input type="submit" value="SEND">
         </form>
-        <input type="submit" value="REPORT">
     </div>
 </div>
 </body>
