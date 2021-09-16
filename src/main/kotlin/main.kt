@@ -40,6 +40,7 @@ fun main(args: Array<String>) {
             }
         }
     }.start(wait = true)
+
 }
 
 fun splitSteps(text: String) = text.split(Regex("(GIVEN|THEN|WHEN)")).filter { it.isNotEmpty() }.map { it.trim() }
