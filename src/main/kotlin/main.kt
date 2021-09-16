@@ -1,9 +1,4 @@
 import com.github.mustachejava.DefaultMustacheFactory
-import com.github.mustachejava.DefaultMustacheVisitor
-import com.sun.jdi.InvocationException
-import common.RESULT
-import common.StepResult
-import common.Urumber
 import io.ktor.application.*
 import io.ktor.http.*
 import io.ktor.request.*
@@ -11,31 +6,66 @@ import io.ktor.response.*
 import io.ktor.routing.*
 import io.ktor.server.engine.*
 import io.ktor.server.netty.*
-import turtle.Steps
+import apps.turtle.TurtleSteps
+import apps.turtle.TurtleApp
+import apps.userAdmin.UserAdminApp
+import apps.userAdmin.UserAdminSteps
+import common.*
+import io.ktor.http.content.*
+import java.io.File
 import java.io.StringWriter
-import java.lang.UnsupportedOperationException
-import java.lang.reflect.InvocationTargetException
-import java.lang.reflect.Method
 
 fun main(args: Array<String>) {
     val mf = DefaultMustacheFactory()
+    fun getWriter(appName: String, app: Class<*>, steps: Class<*>, script: List<String>? = null): StringWriter {
+        val w = StringWriter()
+        val m = mf.compile(mf.getReader("templates/${appName}.html"), "apps/${appName}")
+        m.execute(w, createPage(app, steps, script)).flush()
+        return w
+    }
     embeddedServer(Netty, 8080) {
         routing {
-            get("/turtle") {
-                val m = mf.compile(mf.getReader("templates/hello.html"), "hello")
-                val w = StringWriter()
-                m.execute(w, "null").flush()
-                call.respondText(w.buffer.toString(), ContentType.Text.Html)
+            static("static") {
+                staticRootFolder= File("src\\main\\resources")
+                files("js")
+                files("css")
             }
-            get("/turtle/methods") {
-                call.respondText(getMethods(Steps::class.java).map { it.first }.joinToString(", ", "{", "}"))
-            }
-            post("/turtle/runTest") {
+            get("/apps/turtle") {
                 call.respondText(
-                    runTest(
-                        call.receiveText(),
-                        turtle.Steps() as Any
-                    )
+                    getWriter(
+                        "turtle",
+                        TurtleApp::class.java,
+                        TurtleSteps()::class.java
+                    ).buffer.toString(), ContentType.Text.Html
+                )
+            }
+            post("/apps/turtle") {
+                call.respondText(
+                    getWriter(
+                        "turtle",
+                        TurtleApp::class.java,
+                        TurtleSteps()::class.java,
+                        call.receiveParameters().getAll("step[]")
+                    ).buffer.toString(), ContentType.Text.Html
+                )
+            }
+            get("/apps/userAdmin") {
+                call.respondText(
+                    getWriter(
+                        "userAdmin",
+                        UserAdminApp::class.java,
+                        UserAdminSteps()::class.java
+                    ).buffer.toString(), ContentType.Text.Html
+                )
+            }
+            post("/apps/userAdmin") {
+                call.respondText(
+                    getWriter(
+                        "userAdmin",
+                        UserAdminApp::class.java,
+                        UserAdminSteps()::class.java,
+                        call.receiveParameters().getAll("step[]")
+                    ).buffer.toString(), ContentType.Text.Html
                 )
             }
         }
@@ -43,48 +73,17 @@ fun main(args: Array<String>) {
 
 }
 
-fun splitSteps(text: String) = text.split(Regex("(GIVEN|THEN|WHEN)")).filter { it.isNotEmpty() }.map { it.trim() }
-
-fun runTest(steps: String, obj: Any): String {
-    return runSteps(splitSteps(steps), getMethods(obj.javaClass), obj)
-}
-
-fun runSteps(steps: List<String>, methods: List<Pair<String, Method>>, obj: Any) =
-    steps.map {
-        runStep(it, methods, obj)
-    }.joinToString(",", "[", "]")
-
-
-fun runStep(step: String, methods: List<Pair<String, Method>>, obj: Any): StepResult {
-    try {
-        if (methods.find { Regex(it.first).matches(step) } != null) {
-            val regExpAndMethods = methods.find { Regex(it.first).matches(step) }!!
-            val groupValues = getArgsFromCommand(step, regExpAndMethods.first)
-            val arguments = groupValues.subList(1, groupValues.size)
-            runMethod(regExpAndMethods.second, arguments, obj)
+fun createPage(app: Class<*>, steps: Class<*>, script: List<String>? = null) =
+    Page(
+        UrumberRunner.getAppDescription(app).asList().map { AppDescription(it) },
+        UrumberRunner.getStepsViewAndDescription(steps).map { MethodView(it.first, it.second) },
+        if (script != null) {
+            UrumberRunner.runTest(
+                script!!,
+                steps.constructors[0].newInstance() as Any
+            )
         } else {
-            throw UnsupportedOperationException("NO SUCH METHOD")
+            UrumberRunner.getDefaultSteps(steps).map { StepResult(it) }
         }
-    } catch (e: InvocationTargetException) {
-        return StepResult(step, RESULT.FAILED, e.cause!!.toString())
-    } catch (e: Exception) {
-        return StepResult(step, RESULT.FAILED, e.toString())
-    }
-    return StepResult(step, RESULT.PASSED)
-}
+    )
 
-fun runMethod(method: Method, arguments: List<String>, obj: Any) {
-    val argumentsAfterCast = arguments.mapIndexed { index, s ->
-        when (method.parameters[index].parameterizedType.typeName) {
-            "int" -> s.toInt()
-            "java.lang.String" -> s
-            else -> throw Exception("Unsupported Argument")
-        }
-    }.toTypedArray()
-    method.invoke(obj, *argumentsAfterCast)
-}
-
-fun getArgsFromCommand(step: String, regExp: String) = Regex(regExp).matchEntire(step)!!.groupValues
-
-fun getMethods(clazz: Class<*>) = clazz.methods.filter { it.isAnnotationPresent(Urumber::class.java) }
-    .map { it.getAnnotation(Urumber::class.java).regExp to it }

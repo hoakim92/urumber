@@ -1,0 +1,28 @@
+    #wrapper{
+        display:-webkit-flex;
+        -webkit-justify-content:center;
+        display:flex;
+        justify-content:center;
+        margin-top: 50px;
+        margin-left: 10%;
+        margin-right: 10%;
+    }
+
+    #wrapper div{
+        -webkit-flex:1;
+        flex:1;
+        align: center;
+    }
+
+    table thead tr td {
+        text-align: center;
+    }
+
+    textarea
+    {
+      font-family:"Times New Roman", Times, serif;
+      font-size: 16px;
+      min-width: 200px;
+      border: none;
+      resize: none;
+    }
